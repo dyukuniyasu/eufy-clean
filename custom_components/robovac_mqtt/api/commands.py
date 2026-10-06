@@ -55,14 +55,17 @@ def build_set_cleaning_mode_command(clean_mode: str) -> dict[str, str]:
     return {DPS_MAP["CLEANING_PARAMETERS"]: value}
 
 
-def _build_mode_ctrl(method: int) -> dict[str, str]:
+def _build_mode_ctrl(method: int, clean_times: int = 1) -> dict[str, str]:
     """Helper for ModeCtrlRequest commands."""
     data: dict[str, Any] = {"method": int(method)}
 
     # Special handling for methods that require a parameter in the "oneof Param"
     if method == EUFY_CLEAN_CONTROL.START_AUTO_CLEAN:
-        # AutoClean message: clean_times=1, force_mapping=False
-        data["auto_clean"] = {"clean_times": 1, "force_mapping": False}
+        # AutoClean message: configurable clean_times, force_mapping=False
+        data["auto_clean"] = {
+            "clean_times": max(1, int(clean_times)),
+            "force_mapping": False,
+        }
     elif method == EUFY_CLEAN_CONTROL.START_SPOT_CLEAN:
         # SpotClean message: clean_times=1
         data["spot_clean"] = {"clean_times": 1}
@@ -599,7 +602,9 @@ def build_command(
 
     # Mode Control
     if cmd == "start_auto":
-        return _build_mode_ctrl(EUFY_CLEAN_CONTROL.START_AUTO_CLEAN)
+        return _build_mode_ctrl(
+            EUFY_CLEAN_CONTROL.START_AUTO_CLEAN, int(kwargs.get("clean_times", 1) or 1)
+        )
     if cmd in ("play", "resume"):
         return _build_mode_ctrl(EUFY_CLEAN_CONTROL.RESUME_TASK)
     if cmd == "pause":

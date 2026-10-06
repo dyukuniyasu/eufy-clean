@@ -2,6 +2,8 @@
 
 import base64
 
+import pytest
+
 from custom_components.robovac_mqtt.api.commands import (
     _build_off_peak_sub_bytes,
     build_command,
@@ -29,7 +31,7 @@ from custom_components.robovac_mqtt.proto.cloud.multi_maps_pb2 import (
     MultiMapsManageRequest,
 )
 from custom_components.robovac_mqtt.proto.cloud.unisetting_pb2 import UnisettingRequest
-from custom_components.robovac_mqtt.utils import decode, decode_varint, encode_varint
+from custom_components.robovac_mqtt.utils import decode, decode_varint, encode, encode_varint
 
 
 def _build_fake_response_b64(
@@ -70,6 +72,35 @@ def test_set_cleaning_intensity_invalid():
 def test_build_command_unknown_returns_empty():
     """Test build_command with unknown command returns empty dict."""
     assert not build_command("nonexistent_command")
+
+
+def test_start_auto_default_payload():
+    """Default auto clean preserves the original single-pass payload."""
+    result = build_command("start_auto")
+    expected = encode(
+        ModeCtrlRequest,
+        {
+            "method": EUFY_CLEAN_CONTROL.START_AUTO_CLEAN,
+            "auto_clean": {"clean_times": 1, "force_mapping": False},
+        },
+    )
+    assert result == {DPS_MAP["PLAY_PAUSE"]: expected}
+    decoded = decode(ModeCtrlRequest, result[DPS_MAP["PLAY_PAUSE"]])
+    assert decoded.method == EUFY_CLEAN_CONTROL.START_AUTO_CLEAN
+    assert decoded.auto_clean.clean_times == 1
+
+
+@pytest.mark.parametrize(
+    ("clean_times", "expected"), [(2, 2), (0, 1), ("2", 2), (-1, 1)]
+)
+def test_start_auto_clean_times(clean_times: int | str, expected: int):
+    """Auto clean accepts a repeat count, coerces strings and clamps to one."""
+    result = build_command("start_auto", clean_times=clean_times)
+    decoded = decode(ModeCtrlRequest, result[DPS_MAP["PLAY_PAUSE"]])
+    assert decoded.method == EUFY_CLEAN_CONTROL.START_AUTO_CLEAN
+    assert decoded.WhichOneof("Param") == "auto_clean"
+    assert decoded.auto_clean.clean_times == expected
+    assert decoded.auto_clean.force_mapping is False
 
 
 def test_set_child_lock_command():

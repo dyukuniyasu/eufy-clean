@@ -241,6 +241,18 @@ target:
 
 Default scenes are typically 1–3; custom scenes start at 4+. Find IDs in the **Scene/Task** select entity.
 
+### Whole-house clean count (x1 / x2)
+
+Use `start_auto` with `clean_times: 2` to request two whole-house cleaning passes.
+Omit `clean_times` or set it to `1` for a single pass.
+This option applies to novel-protocol devices; scalar devices do not support a clean count.
+
+```yaml
+action: vacuum.send_command
+target: { entity_id: vacuum.eufy_clean }
+data: { command: start_auto, params: { clean_times: 2 } }
+```
+
 ### Room Cleaning
 
 ```yaml
